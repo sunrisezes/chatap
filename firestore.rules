@@ -1,0 +1,415 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global Safety Net (Default-Deny Catch-All)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'sunrisezes@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isCoAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/coadmins/$(request.auth.uid));
+    }
+
+    function isModerator() {
+      return isSuperAdmin() || isCoAdmin();
+    }
+
+    function isNotBanned() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned == false;
+    }
+
+    function isNotMuted() {
+      return isNotBanned() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isMuted == false;
+    }
+
+    // Validation Blueprints (Pillar 2)
+    function isValidUserPublicProfile(data) {
+      return data.keys().hasAll([
+        'uid', 'username', 'dob', 'age', 'gender', 'avatarUrl', 'bio',
+        'status', 'isGuest', 'isBanned', 'isMuted', 'visibility', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'username', 'dob', 'age', 'gender', 'avatarUrl', 'bio',
+        'status', 'isGuest', 'isBanned', 'isMuted', 'visibility', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.uid) &&
+      data.username is string && data.username.size() >= 2 && data.username.size() <= 32 &&
+      data.dob is string && data.dob.size() == 10 &&
+      data.age is int && data.age >= 13 && data.age <= 120 &&
+      data.gender is string && data.gender.size() >= 1 && data.gender.size() <= 32 &&
+      data.gender in ['Female', 'Male', 'Non-Binary', 'Prefer not to say'] &&
+      data.avatarUrl is string && data.avatarUrl.size() >= 1 && data.avatarUrl.size() <= 150000 &&
+      data.bio is string && data.bio.size() >= 0 && data.bio.size() <= 240 &&
+      data.status is string && data.status.size() >= 1 && data.status.size() <= 16 &&
+      data.status in ['online', 'away', 'busy', 'offline'] &&
+      data.isGuest is bool &&
+      data.isBanned is bool &&
+      data.isMuted is bool &&
+      data.visibility is string && data.visibility.size() == 6 && data.visibility == 'public' &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+      data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+      isValidId(data.uid) &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidStealthCoAdmin(data) {
+      return data.keys().hasAll(['uid', 'assignedBy', 'canBan', 'canMute', 'canResolveReports', 'createdAt']) &&
+      data.keys().hasOnly(['uid', 'assignedBy', 'canBan', 'canMute', 'canResolveReports', 'createdAt']) &&
+      isValidId(data.uid) &&
+      isValidId(data.assignedBy) &&
+      data.canBan is bool &&
+      data.canMute is bool &&
+      data.canResolveReports is bool &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidChatRoom(data) {
+      return data.keys().hasAll([
+        'id', 'name', 'topic', 'category', 'ownerId', 'ownerName',
+        'isLocked', 'hasPassword', 'passwordHash', 'themeColor', 'isListed', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'name', 'topic', 'category', 'ownerId', 'ownerName',
+        'isLocked', 'hasPassword', 'passwordHash', 'themeColor', 'isListed', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.id) &&
+      data.name is string && data.name.size() >= 2 && data.name.size() <= 60 &&
+      data.topic is string && data.topic.size() >= 0 && data.topic.size() <= 160 &&
+      data.category is string && data.category.size() >= 1 && data.category.size() <= 16 &&
+      data.category in ['public', 'private', 'direct'] &&
+      isValidId(data.ownerId) &&
+      data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 32 &&
+      data.isLocked is bool &&
+      data.hasPassword is bool &&
+      data.passwordHash is string && data.passwordHash.size() >= 0 && data.passwordHash.size() <= 128 &&
+      data.themeColor is string && data.themeColor.size() >= 3 && data.themeColor.size() <= 32 &&
+      data.isListed is bool &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll([
+        'id', 'roomId', 'senderId', 'senderName', 'senderAvatar',
+        'type', 'text', 'mediaUrl', 'voiceDuration', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'roomId', 'senderId', 'senderName', 'senderAvatar',
+        'type', 'text', 'mediaUrl', 'voiceDuration', 'createdAt'
+      ]) &&
+      isValidId(data.id) &&
+      isValidId(data.roomId) &&
+      isValidId(data.senderId) &&
+      data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 32 &&
+      data.senderAvatar is string && data.senderAvatar.size() >= 1 && data.senderAvatar.size() <= 150000 &&
+      data.type is string && data.type.size() >= 1 && data.type.size() <= 16 &&
+      data.type in ['text', 'voice', 'image', 'video', 'invite'] &&
+      data.text is string && data.text.size() >= 0 && data.text.size() <= 2000 &&
+      data.mediaUrl is string && data.mediaUrl.size() >= 0 && data.mediaUrl.size() <= 600000 &&
+      data.voiceDuration is int && data.voiceDuration >= 0 && data.voiceDuration <= 600 &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidUserReport(data) {
+      return data.keys().hasAll([
+        'id', 'reporterId', 'reporterName', 'targetUserId', 'targetUsername',
+        'reason', 'details', 'roomId', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'reporterId', 'reporterName', 'targetUserId', 'targetUsername',
+        'reason', 'details', 'roomId', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.id) &&
+      isValidId(data.reporterId) &&
+      data.reporterName is string && data.reporterName.size() >= 1 && data.reporterName.size() <= 32 &&
+      isValidId(data.targetUserId) &&
+      data.targetUsername is string && data.targetUsername.size() >= 1 && data.targetUsername.size() <= 32 &&
+      data.reason is string && data.reason.size() >= 2 && data.reason.size() <= 80 &&
+      data.details is string && data.details.size() >= 0 && data.details.size() <= 500 &&
+      isValidId(data.roomId) &&
+      data.status is string && data.status.size() >= 1 && data.status.size() <= 16 &&
+      data.status in ['pending', 'resolved', 'dismissed'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidUserBlock(data) {
+      return data.keys().hasAll(['blockerId', 'blockedUserId', 'createdAt']) &&
+      data.keys().hasOnly(['blockerId', 'blockedUserId', 'createdAt']) &&
+      isValidId(data.blockerId) &&
+      isValidId(data.blockedUserId) &&
+      data.createdAt is timestamp;
+    }
+
+    // 1. Public User Profiles (/users/{userId})
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && existing().visibility == 'public';
+      allow list: if isSignedIn() && existing().visibility == 'public';
+
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUserPublicProfile(incoming()) &&
+        incoming().uid == userId &&
+        incoming().uid == request.auth.uid &&
+        incoming().isBanned == false &&
+        incoming().isMuted == false &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUserPublicProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Owner updates own profile details (cannot alter isBanned or isMuted)
+          (
+            request.auth.uid == userId &&
+            existing().isBanned == false &&
+            incoming().isBanned == existing().isBanned &&
+            incoming().isMuted == existing().isMuted &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'status', 'updatedAt'])
+          ) ||
+          // Action 2: Moderator (Super Admin or Stealth Co-Admin) bans or mutes a non-Super-Admin user
+          (
+            isModerator() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['isBanned', 'isMuted', 'status', 'updatedAt'])
+          ) ||
+          isSuperAdmin()
+        );
+
+      allow delete: if isSuperAdmin() && isValidId(userId);
+
+      // 1a. Isolated Private User Info (/users/{userId}/private/{docId}) - Pillar 6 PII Isolation
+      match /private/{docId} {
+        allow get: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(docId) &&
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          (request.auth.uid == userId || isSuperAdmin());
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(docId) &&
+          isValidUserPrivateInfo(incoming()) &&
+          incoming().uid == userId &&
+          incoming().uid == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          exists(/databases/$(database)/documents/users/$(userId));
+
+        allow update, delete: if isSuperAdmin() && isValidId(userId) && isValidId(docId);
+      }
+
+      // 1b. Personal Blocked Users (/users/{userId}/blocks/{targetUserId})
+      match /blocks/{targetUserId} {
+        allow get: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(targetUserId) &&
+          request.auth.uid == userId &&
+          exists(/databases/$(database)/documents/users/$(userId));
+
+        allow list: if isSignedIn() &&
+          request.auth.uid == userId &&
+          existing().blockerId == request.auth.uid;
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(targetUserId) &&
+          isValidUserBlock(incoming()) &&
+          request.auth.uid == userId &&
+          incoming().blockerId == request.auth.uid &&
+          incoming().blockedUserId == targetUserId &&
+          incoming().createdAt == request.time &&
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          exists(/databases/$(database)/documents/users/$(targetUserId));
+
+        allow delete: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(targetUserId) &&
+          request.auth.uid == userId &&
+          exists(/databases/$(database)/documents/users/$(userId));
+      }
+    }
+
+    // 2. Super Admin Registry (/admins/{adminId})
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && (request.auth.uid == adminId || isSuperAdmin());
+      allow create, update, delete: if false;
+    }
+
+    // 3. Stealth Co-Admin Registry (/coadmins/{userId})
+    // Invisible to normal users: only readable by Super Admin or the assigned Co-Admin themselves
+    match /coadmins/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isSuperAdmin());
+      allow list: if isSignedIn() && request.auth.token.email == 'sunrisezes@gmail.com' && existing().canBan is bool;
+
+      allow create: if isSuperAdmin() &&
+        isValidId(userId) &&
+        isValidStealthCoAdmin(incoming()) &&
+        incoming().uid == userId &&
+        incoming().assignedBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(userId));
+
+      allow update: if isSuperAdmin() &&
+        isValidId(userId) &&
+        isValidStealthCoAdmin(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().assignedBy == existing().assignedBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['canBan', 'canMute', 'canResolveReports']);
+
+      allow delete: if isSuperAdmin() && isValidId(userId);
+    }
+
+    // 4. Chat Rooms (/rooms/{roomId})
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) && existing().isListed == true;
+      allow list: if isSignedIn() && existing().isListed == true;
+
+      allow create: if isSignedIn() &&
+        isValidId(roomId) &&
+        isValidChatRoom(incoming()) &&
+        incoming().id == roomId &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isNotBanned();
+
+      allow update: if isSignedIn() &&
+        isValidId(roomId) &&
+        isValidChatRoom(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Room owner or moderator locks/unlocks room or updates topic/password
+          (
+            (request.auth.uid == existing().ownerId || isModerator()) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'topic', 'isLocked', 'hasPassword', 'passwordHash', 'themeColor', 'updatedAt'
+            ])
+          ) ||
+          isSuperAdmin()
+        );
+
+      allow delete: if isSignedIn() &&
+        isValidId(roomId) &&
+        (request.auth.uid == existing().ownerId || isModerator());
+
+      // 4a. Room Messages Subcollection (/rooms/{roomId}/messages/{messageId})
+      match /messages/{messageId} {
+        // Pillar 1: Master Gate checks parent room exists
+        allow get: if isSignedIn() &&
+          isValidId(roomId) &&
+          isValidId(messageId) &&
+          exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+          existing().roomId == roomId;
+
+        // Pillar 8: Query Enforcer (no get/exists inside list)
+        allow list: if isSignedIn() && existing().roomId == roomId;
+
+        allow create: if isSignedIn() &&
+          isValidId(roomId) &&
+          isValidId(messageId) &&
+          isValidChatMessage(incoming()) &&
+          incoming().id == messageId &&
+          incoming().roomId == roomId &&
+          incoming().senderId == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          isNotMuted() &&
+          exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+          (
+            get(/databases/$(database)/documents/rooms/$(roomId)).data.isLocked == false ||
+            get(/databases/$(database)/documents/rooms/$(roomId)).data.ownerId == request.auth.uid ||
+            isModerator()
+          );
+
+        allow delete: if isSignedIn() &&
+          isValidId(roomId) &&
+          isValidId(messageId) &&
+          exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+          (request.auth.uid == existing().senderId || isModerator());
+      }
+    }
+
+    // 5. Moderation Reports (/reports/{reportId})
+    match /reports/{reportId} {
+      allow get: if isSignedIn() &&
+        isValidId(reportId) &&
+        (existing().reporterId == request.auth.uid || isModerator());
+
+      allow list: if isSignedIn() && (
+        existing().reporterId == request.auth.uid ||
+        (request.auth.token.email == 'sunrisezes@gmail.com' && existing().status in ['pending', 'resolved', 'dismissed'])
+      );
+
+      allow create: if isSignedIn() &&
+        isValidId(reportId) &&
+        isValidUserReport(incoming()) &&
+        incoming().id == reportId &&
+        incoming().reporterId == request.auth.uid &&
+        incoming().targetUserId != request.auth.uid &&
+        incoming().status == 'pending' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isNotBanned() &&
+        exists(/databases/$(database)/documents/users/$(incoming().targetUserId)) &&
+        exists(/databases/$(database)/documents/rooms/$(incoming().roomId));
+
+      // Pillar 6: Terminal State Locking on status ('resolved' / 'dismissed')
+      allow update: if isSignedIn() &&
+        isValidId(reportId) &&
+        isValidUserReport(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().reporterId == existing().reporterId &&
+        incoming().targetUserId == existing().targetUserId &&
+        incoming().roomId == existing().roomId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (
+            isModerator() &&
+            existing().status == 'pending' &&
+            incoming().status in ['resolved', 'dismissed'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'details', 'updatedAt'])
+          ) ||
+          isSuperAdmin()
+        );
+
+      allow delete: if isSuperAdmin() && isValidId(reportId);
+    }
+  }
+}

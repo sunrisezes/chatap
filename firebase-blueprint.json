@@ -1,0 +1,434 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Publicly visible user profile in the chat lounge without PII or hidden admin roles.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique user identifier matching auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "description": "Display handle chosen by the user.",
+          "minLength": 2,
+          "maxLength": 32
+        },
+        "dob": {
+          "type": "string",
+          "description": "ISO date of birth string (YYYY-MM-DD).",
+          "minLength": 10,
+          "maxLength": 10
+        },
+        "age": {
+          "type": "integer",
+          "description": "Calculated age in years (18-99)."
+        },
+        "gender": {
+          "type": "string",
+          "description": "User gender identity.",
+          "enum": ["Female", "Male", "Non-Binary", "Prefer not to say"]
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "Avatar URL or SVG/base64 data URI.",
+          "minLength": 1,
+          "maxLength": 150000
+        },
+        "bio": {
+          "type": "string",
+          "description": "Short personal status or bio.",
+          "minLength": 0,
+          "maxLength": 240
+        },
+        "status": {
+          "type": "string",
+          "description": "Presence state.",
+          "enum": ["online", "away", "busy", "offline"]
+        },
+        "isGuest": {
+          "type": "boolean",
+          "description": "Whether the profile was created as a quick guest."
+        },
+        "isBanned": {
+          "type": "boolean",
+          "description": "Whether the user is currently banned by an admin/co-admin."
+        },
+        "isMuted": {
+          "type": "boolean",
+          "description": "Whether the user is currently muted from posting."
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Query enforcer field for directory listing.",
+          "enum": ["public"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "uid",
+        "username",
+        "dob",
+        "age",
+        "gender",
+        "avatarUrl",
+        "bio",
+        "status",
+        "isGuest",
+        "isBanned",
+        "isMuted",
+        "visibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII document containing the user's private email address.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "StealthCoAdmin": {
+      "title": "StealthCoAdmin",
+      "description": "Hidden co-admin privilege record. Invisible to regular users so nobody notices the user is a co-admin on their public profile.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "assignedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "canBan": {
+          "type": "boolean"
+        },
+        "canMute": {
+          "type": "boolean"
+        },
+        "canResolveReports": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "assignedBy", "canBan", "canMute", "canResolveReports", "createdAt"]
+    },
+    "ChatRoom": {
+      "title": "ChatRoom",
+      "description": "Public, private password-protected (PVR), or 1-on-1 direct chat room.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "enum": ["public", "private", "direct"]
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "isLocked": {
+          "type": "boolean"
+        },
+        "hasPassword": {
+          "type": "boolean"
+        },
+        "passwordHash": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "themeColor": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "isListed": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "topic",
+        "category",
+        "ownerId",
+        "ownerName",
+        "isLocked",
+        "hasPassword",
+        "passwordHash",
+        "themeColor",
+        "isListed",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Real-time message inside a room supporting text, emojis, voice notes, images, and videos.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "senderAvatar": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150000
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "voice", "image", "video", "invite"]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "mediaUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 600000
+        },
+        "voiceDuration": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "senderId",
+        "senderName",
+        "senderAvatar",
+        "type",
+        "text",
+        "mediaUrl",
+        "voiceDuration",
+        "createdAt"
+      ]
+    },
+    "UserReport": {
+      "title": "UserReport",
+      "description": "Moderation report submitted against an abusive user or message.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reporterId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reporterName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "targetUserId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "targetUsername": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "details": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "roomId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "resolved", "dismissed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "reporterId",
+        "reporterName",
+        "targetUserId",
+        "targetUsername",
+        "reason",
+        "details",
+        "roomId",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserBlock": {
+      "title": "UserBlock",
+      "description": "Personal block record stored in a user's blocks subcollection.",
+      "type": "object",
+      "properties": {
+        "blockerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "blockedUserId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["blockerId", "blockedUserId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Public user profiles with zero PII and zero visible admin role."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Strictly isolated PII subcollection for user email."
+    },
+    "/users/{userId}/blocks/{targetUserId}": {
+      "schema": { "$ref": "#/entities/UserBlock" },
+      "description": "Personal blocked user list per user."
+    },
+    "/coadmins/{userId}": {
+      "schema": { "$ref": "#/entities/StealthCoAdmin" },
+      "description": "Stealth co-admin registry accessible only to the super admin and the assigned co-admin."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/ChatRoom" },
+      "description": "Public, password-protected private, and 1-on-1 rooms."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Messages inside a specific room."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/UserReport" },
+      "description": "Moderation reports submitted by users and reviewed by super admin / stealth co-admins."
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "PrismChat 3D — Live Rooms & Random Social Lounge",
+  "description": "A vibrant 3D spatial real-time chat platform featuring instant guest & email profiles, public and password-protected rooms, random 1-on-1 matching, voice notes, and media sharing.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
