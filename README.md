@@ -11,7 +11,7 @@ A modern, responsive 3D spatial real-time chat platform where people around the 
 
 ## 🌐 Live Demo
 
-- **Live Production URL:** [https://ais-pre-ogcvuph5k4tsmdvbfnkcf7-586190855991.asia-southeast1.run.app](https://ais-pre-ogcvuph5k4tsmdvbfnkcf7-586190855991.asia-southeast1.run.app)
+
 - **GitHub Repository:** [https://github.com/sunrisezes/chatap](https://github.com/sunrisezes/chatap)
 
 ---
